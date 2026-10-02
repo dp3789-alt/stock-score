@@ -10,11 +10,11 @@ const LABELS = {
   revenue_cagr_3y: "3년 매출 CAGR", eps_cagr_3y: "3년 EPS CAGR", revenue_growth_ttm: "TTM 매출 성장률",
   fcf_cagr_3y: "3년 FCF CAGR", revenue_growth_consistency: "매출 성장 꾸준함",
   debt_to_equity: "부채비율(D/E)", current_ratio: "유동비율", interest_coverage: "이자보상배율",
-  fcf_positive_years: "FCF 흑자 연수 비율", dividend_stability: "배당 안정성",
+  fcf_positive_years: "FCF 흑자 연수 비율", dividend_stability: "배당 안정성", equity_ratio: "자기자본비율(금융업)",
   pe: "PER", pb: "PBR", ev_ebitda: "EV/EBITDA", fcf_yield: "FCF 수익률", peg: "PEG",
 };
 const PCT = new Set(["roe", "roa", "operating_margin", "net_margin", "fcf_margin", "revenue_cagr_3y", "eps_cagr_3y",
-  "revenue_growth_ttm", "fcf_cagr_3y", "revenue_growth_consistency", "fcf_positive_years", "fcf_yield", "dividend_stability"]);
+  "revenue_growth_ttm", "fcf_cagr_3y", "revenue_growth_consistency", "fcf_positive_years", "fcf_yield", "dividend_stability", "equity_ratio"]);
 const catName = (k) => CATEGORIES.find((c) => c.key === k)?.ko || k;
 const opName = (k) => OPINIONS[k]?.ko || k;
 const raw = (m, v) => (v === null || v === undefined ? "–" : PCT.has(m) ? (v * 100).toFixed(1) + "%" : Number(v).toFixed(2));
@@ -86,10 +86,15 @@ function armIdle() {
 ["click", "keydown", "scroll", "touchstart"].forEach((ev) => addEventListener(ev, armIdle, { passive: true }));
 
 // ---------- 점수 재계산 (엔진과 같은 방식) ----------
+function applicable(m, spec, sector, cfg) {
+  if ((cfg.sector_exclusions?.[sector] || []).includes(m)) return false;
+  return !spec.sectors_only || spec.sectors_only.includes(sector);
+}
+
 function simulateRow(row, cfg) {
   const cats = {};
   for (const [cat, specs] of Object.entries(cfg.metrics)) {
-    const totalW = Object.values(specs).reduce((a, s) => a + Number(s.weight), 0);
+    const totalW = Object.entries(specs).filter(([m, s]) => applicable(m, s, row.sector, cfg)).reduce((a, [, s]) => a + Number(s.weight), 0);
     let w = 0, acc = 0;
     for (const [m, s] of Object.entries(specs)) {
       const v = row.metric_scores[m];
@@ -228,6 +233,7 @@ function renderInspect(t) {
   const sections = Object.entries(sim.metrics).map(([cat, specs]) => {
     const body = Object.entries(specs).map(([m, sp]) => {
       const ms = r.metric_scores[m];
+      if (!applicable(m, sp, r.sector, sim)) return "";
       return `<tr><td>${esc(LABELS[m] || m)}</td><td class="num">${raw(m, r.metrics[m])}</td>
         <td class="num">${ms === undefined ? "<span class='muted'>제외</span>" : ms.toFixed(1)}</td>
         <td class="num">${sp.weight}</td><td class="small muted">${sp.better === "lower" ? "낮을수록 좋음" : "높을수록 좋음"}</td></tr>`;
