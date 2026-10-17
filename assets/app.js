@@ -169,6 +169,8 @@ async function viewStock(tk) {
   }
   const inWatch = watch.has(d.t);
   const inCompare = compareList().includes(d.t);
+  // 예전 데이터는 연간 배열만 있다
+  const series = Array.isArray(d.charts) ? { annual: d.charts, quarterly: [] } : { annual: [], quarterly: [], ...d.charts };
   const flags = (d.flags || []).map((f) => f === "negative_equity" ? t("flagsNegEquity") : f === "no_market_cap" ? t("flagsNoMcap") : "").filter(Boolean);
   app.innerHTML = `
     ${searchBox("q", go)}
@@ -208,11 +210,14 @@ async function viewStock(tk) {
 
     <details class="card fin" id="fin">
       <summary><h2>${esc(t("financialsTitle"))}</h2></summary>
+      <div class="seg" role="radiogroup" aria-label="${esc(t("periodLabel"))}">
+        ${["annual", "quarterly"].map((p) => `<button type="button" role="radio" data-period="${p}"
+          ${p === "quarterly" && !series.quarterly.length ? "disabled" : ""}>${esc(t(p === "annual" ? "periodAnnual" : "periodQuarterly"))}</button>`).join("")}
+      </div>
+      <p class="muted small" id="period-note"></p>
       <div class="charts">
-        <figure><figcaption>${esc(t("chartRevenue"))}</figcaption><div class="chart-box"><canvas id="c-rev"></canvas></div></figure>
-        <figure><figcaption>${esc(t("chartFcf"))}</figcaption><div class="chart-box"><canvas id="c-fcf"></canvas></div></figure>
-        <figure><figcaption>${esc(t("chartMargin"))}</figcaption><div class="chart-box"><canvas id="c-mar"></canvas></div></figure>
-        <figure><figcaption>${esc(t("chartDebt"))}</figcaption><div class="chart-box"><canvas id="c-de"></canvas></div></figure>
+        ${CHARTS.map((c) => `<figure><figcaption><span>${esc(t(c.title))}</span> <span class="period-tag"></span></figcaption>
+          <div class="chart-box"><canvas id="${c.id}"></canvas><p class="chart-empty muted small" hidden>${esc(t("noChartData"))}</p></div></figure>`).join("")}
       </div>
       <h3>${esc(t("keyFigures"))}</h3>
       <dl class="figures">${KEY_FIGURES.map((k) => `<div><dt>${esc(k[lang])}</dt><dd>${fmtValue(d.key?.[k.key], k.fmt)}</dd></div>`).join("")}</dl>
@@ -223,7 +228,23 @@ async function viewStock(tk) {
     setCompare([...compareList().filter((x) => x !== d.t), d.t]);
     location.hash = "#/compare";
   };
-  document.getElementById("fin").addEventListener("toggle", (e) => { if (e.target.open) drawCharts(d.charts || []); });
+  const fin = document.getElementById("fin");
+  let period = store.get("period", "annual") === "quarterly" && series.quarterly.length ? "quarterly" : "annual";
+  const show = () => {
+    fin.querySelectorAll(".seg button").forEach((b) => b.setAttribute("aria-checked", b.dataset.period === period));
+    fin.querySelectorAll(".period-tag").forEach((el) => { el.textContent = `(${t(period === "annual" ? "periodAnnual" : "periodQuarterly")})`; });
+    document.getElementById("period-note").textContent =
+      period === "quarterly" ? t("quarterlyNote") : series.quarterly.length ? "" : t("noQuarterly");
+    if (fin.open) drawCharts(series[period], period);
+  };
+  fin.querySelectorAll(".seg button").forEach((b) => b.addEventListener("click", () => {
+    if (b.disabled || b.dataset.period === period) return;
+    period = b.dataset.period;
+    store.set("period", period);
+    show();
+  }));
+  fin.addEventListener("toggle", () => { if (fin.open) show(); });
+  show();
 }
 
 function ring(score) {
@@ -239,20 +260,37 @@ function cssVar(name) {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 }
 
-function drawCharts(rows) {
+const CHARTS = [
+  { id: "c-rev", title: "chartRevenue", keys: ["revenue", "net_income"] },
+  { id: "c-fcf", title: "chartFcf", keys: ["fcf"] },
+  { id: "c-mar", title: "chartMargin", keys: ["operating_margin"] },
+  { id: "c-de", title: "chartDebt", keys: ["debt_to_equity"] },
+];
+
+function drawCharts(rows, period = "annual") {
   charts.forEach((c) => c.destroy());
   charts = [];
   if (!window.Chart || !rows.length) return;
-  const labels = rows.map((r) => "FY" + r.fy);
+  // 값이 하나도 없는 그래프는 빈 축 대신 안내 문구
+  for (const c of CHARTS) {
+    const empty = !rows.some((r) => c.keys.some((k) => r[k] !== null && r[k] !== undefined));
+    const canvas = document.getElementById(c.id);
+    canvas.hidden = empty;
+    canvas.parentElement.querySelector(".chart-empty").hidden = !empty;
+  }
+  const labels = rows.map((r) => (period === "quarterly" ? t("quarterLabel", r.fy, r.q) : "FY" + r.fy));
   const ink = cssVar("--muted"), grid = cssVar("--line");
   const c1 = cssVar("--series-1"), c2 = cssVar("--series-2");
   const money = (v) => fmtMoney(v);
   const base = (yfmt) => ({
     responsive: true, maintainAspectRatio: false, animation: false,
     plugins: { legend: { labels: { color: ink, boxWidth: 12 } }, tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${yfmt(ctx.parsed.y)}` } } },
-    scales: { x: { ticks: { color: ink }, grid: { display: false } }, y: { ticks: { color: ink, callback: yfmt }, grid: { color: grid } } },
+    scales: { x: { ticks: { color: ink, autoSkip: true, maxRotation: 0 }, grid: { display: false } }, y: { ticks: { color: ink, callback: yfmt }, grid: { color: grid } } },
   });
-  const mk = (id, cfg) => charts.push(new Chart(document.getElementById(id), cfg));
+  const mk = (id, cfg) => {
+    const el = document.getElementById(id);
+    if (!el.hidden) charts.push(new Chart(el, cfg));
+  };
   mk("c-rev", { type: "bar", data: { labels, datasets: [
     { label: t("revenue"), data: rows.map((r) => r.revenue), backgroundColor: c1, borderRadius: 4 },
     { label: t("netIncome"), data: rows.map((r) => r.net_income), backgroundColor: c2, borderRadius: 4 }] }, options: base(money) });
