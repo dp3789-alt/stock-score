@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>StockScore Admin</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="assets/styles.css">
+  <link rel="stylesheet" href="assets/admin.css">
+  <script type="module" src="assets/admin.js"></script>
+</head>
+<body>
+  <header class="top"><div id="nav"><a class="brand" href="./">StockScore</a><nav><b>관리자</b></nav>
+    <div class="toggles"><button id="theme-btn" class="btn ghost small">화면 모드</button>
+    <button id="lock-btn" class="btn ghost small" hidden>잠그기</button></div></div></header>
+  <main id="admin">
+    <section id="lock" class="card lock-card">
+      <h1>관리자 확인</h1>
+      <p class="muted small">관리자 데이터는 암호화되어 있고, 입력한 암호로 이 브라우저 안에서만 풀려요. 암호는 어디에도 전송·저장되지 않아요.</p>
+      <form id="unlock-form" autocomplete="off">
+        <input id="pass" class="field" type="password" autocomplete="current-password" placeholder="관리자 암호" aria-label="관리자 암호" required>
+        <button class="btn primary" type="submit" id="unlock-btn">열기</button>
+      </form>
+      <p id="lock-msg" class="small" role="status"></p>
+    </section>
+    <div id="panel" hidden></div>
+  </main>
+</body>
+</html>

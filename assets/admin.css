@@ -1,0 +1,18 @@
+.lock-card { max-width: 460px; margin: 40px auto; }
+#unlock-form { display: flex; gap: 8px; margin-top: 12px; }
+#unlock-form input { flex: 1; }
+.err { color: var(--s1); }
+.ok { color: var(--s5); }
+.admin-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; }
+.weights { display: grid; gap: 8px; }
+.weights label { display: grid; grid-template-columns: 1fr 70px; align-items: center; gap: 10px; font-size: .9rem; }
+.weights input { width: 70px; text-align: right; }
+.weights .sum { font-size: .85rem; }
+.sub-weights { margin-top: 8px; padding-left: 10px; border-left: 2px solid var(--line); }
+.delta-up { color: var(--s5); font-weight: 700; }
+.delta-down { color: var(--s1); font-weight: 700; }
+.dist { display: flex; gap: 8px; flex-wrap: wrap; }
+.dist span { font-size: .85rem; }
+table.mini td, table.mini th { padding: 6px 8px; font-size: .85rem; }
+.row-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+pre.export { white-space: pre-wrap; font-size: .8rem; background: var(--bg); padding: 10px; border-radius: 10px; border: 1px solid var(--line); max-height: 260px; overflow: auto; }
